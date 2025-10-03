@@ -1,26 +1,10 @@
-// src/pages/Teachers.jsx
 import { useEffect, useMemo, useState } from "react";
 import {
-  Table,
-  Tag,
-  Button,
-  Input,
-  Space,
-  Avatar,
-  message,
-  Dropdown,
-  Drawer,
-  Form,
-  Select,
-  Switch,
-  Popconfirm,
+  Table, Tag, Button, Input, Space, Avatar, message,
+  Dropdown, Drawer, Form, Select, Switch, Popconfirm,
 } from "antd";
 import {
-  EyeOutlined,
-  ReloadOutlined,
-  PlusOutlined,
-  DownOutlined,
-  DeleteOutlined,
+  EyeOutlined, ReloadOutlined, PlusOutlined, DownOutlined, DeleteOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 
@@ -45,12 +29,10 @@ export default function Teachers() {
   const [limit, setLimit] = useState(20);
   const [search, setSearch] = useState("");
 
-  // Drawer state
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
-  // Positions for Select
   const [positions, setPositions] = useState([]);
   const [loadingPos, setLoadingPos] = useState(false);
 
@@ -59,7 +41,6 @@ export default function Teachers() {
     try {
       const params = { page: p, limit: l };
       if (s.trim()) params.search = s.trim();
-
       const res = await axios.get(`${API}/teachers`, { params });
       const { rows, total, page, limit } = parseList(res);
       setRows(rows);
@@ -106,23 +87,22 @@ export default function Teachers() {
       },
       {
         title: "Mã",
-        dataIndex: ["user", "code"],
+        dataIndex: "code",
         width: 140,
-        render: (v, r) => v || r?.code || "-",
+        render: (v) => v || "-",
       },
       {
         title: "Giáo viên",
-        dataIndex: "user",
         width: 320,
-        render: (u, r) => {
-          const username = u?.username ?? r?.username ?? "-";
-          const email = u?.email ?? r?.email ?? "";
-          const phone = u?.phone ?? r?.phone ?? "";
+        render: (_, r) => {
+          const name = r?.name || "-";
+          const email = r?.email || "";
+          const phone = r?.phone || "";
           return (
             <Space>
-              <Avatar>{(username?.[0] || "?").toUpperCase()}</Avatar>
+              <Avatar>{(name?.[0] || "?").toUpperCase()}</Avatar>
               <div>
-                <div style={{ fontWeight: 600 }}>{username}</div>
+                <div style={{ fontWeight: 600 }}>{name}</div>
                 {email && <div style={{ color: "#888" }}>{email}</div>}
                 {phone && <div style={{ color: "#888" }}>{phone}</div>}
               </div>
@@ -132,15 +112,16 @@ export default function Teachers() {
       },
       {
         title: "Trình độ (cao nhất)",
-        dataIndex: "education",
+        dataIndex: "qualification",
         width: 260,
-        render: (ed, r) => {
-          const v = ed ?? r?.education;
-          if (!v) return "-";
+        render: (_v, r) => {
+          const degree = r?.qualification;
+          const major = r?.major;
+          if (!degree && !major) return "-";
           return (
             <div>
-              {v.degree && <div>Bậc: {v.degree}</div>}
-              {v.major && <div>Chuyên ngành: {v.major}</div>}
+              {degree && <div>Bậc: {degree}</div>}
+              {major && <div>Chuyên ngành: {major}</div>}
             </div>
           );
         },
@@ -148,7 +129,7 @@ export default function Teachers() {
       {
         title: "Vị trí công tác",
         dataIndex: "positions",
-        width: 220,
+        width: 240,
         render: (list) =>
           Array.isArray(list) && list.length
             ? list.map((p) => (
@@ -161,9 +142,9 @@ export default function Teachers() {
       },
       {
         title: "Địa chỉ",
-        dataIndex: ["user", "address"],
+        dataIndex: "address",
         width: 220,
-        render: (v, r) => v || r?.address || "-",
+        render: (v) => v || "-",
       },
       {
         title: "Trạng thái",
@@ -215,7 +196,6 @@ export default function Teachers() {
     try {
       await axios.delete(`${API}/teachers/${row?._id}`);
       message.success("Đã xoá giáo viên.");
-      // reload giữ nguyên page hiện tại
       fetchData(page, limit, search);
     } catch (e) {
       console.error("Delete teacher failed", e);
@@ -227,7 +207,6 @@ export default function Teachers() {
     form.resetFields();
     setOpen(true);
   }
-
   function closeDrawer() {
     setOpen(false);
   }
@@ -237,33 +216,37 @@ export default function Teachers() {
       const values = await form.validateFields();
       setSubmitting(true);
 
-      // payload gửi lên — điều chỉnh key nếu BE của mình khác
       const payload = {
+        // root — để BE nhận trực tiếp
+        name: values.username?.trim(),
+        email: values.email?.trim(),
+        phone: values.phone?.trim(),
+        address: values.address?.trim(),
+        status: values.active ? "ACTIVE" : "INACTIVE",
+        education: {
+          degree: values.degree || "",
+          major: values.major || "",
+        },
+        positionIds: values.positionIds || [],
+
+        // user — để BE nhận qua user{}
         user: {
           username: values.username?.trim(),
           email: values.email?.trim(),
           phone: values.phone?.trim(),
           address: values.address?.trim(),
         },
-        status: values.active ? "ACTIVE" : "INACTIVE",
-        education: {
-          degree: values.degree || "",
-          major: values.major || "",
-        },
-        // BE có thể mong đợi mảng id hoặc mảng object; phổ biến nhất là id:
-        positionIds: values.positionIds || [],
       };
 
       await axios.post(`${API}/teachers`, payload);
       message.success("Tạo mới giáo viên thành công.");
       closeDrawer();
-      // refresh về trang 1 để thấy bản ghi mới nhất
       fetchData(1, limit, search);
     } catch (e) {
-      if (e?.errorFields) return; // lỗi validate của Form
+      if (e?.errorFields) return;
       console.error("Create teacher failed", e);
       message.error(
-        e?.response?.data?.message || "Không tạo được giáo viên. Vui lòng kiểm tra dữ liệu."
+        e?.response?.data?.error || e?.response?.data?.message || "Không tạo được giáo viên. Vui lòng kiểm tra dữ liệu."
       );
     } finally {
       setSubmitting(false);
@@ -315,7 +298,6 @@ export default function Teachers() {
         scroll={{ x: 1150 }}
       />
 
-      {/* Drawer tạo mới */}
       <Drawer
         title="Tạo mới giáo viên"
         open={open}
@@ -331,11 +313,7 @@ export default function Teachers() {
           </Space>
         }
       >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ active: true, positionIds: [] }}
-        >
+        <Form form={form} layout="vertical" initialValues={{ active: true, positionIds: [] }}>
           <Form.Item
             label="Họ và tên"
             name="username"
